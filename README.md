@@ -12,4 +12,8 @@ raw files come from:
 
 ## Usage
 
-Just look at the notebook. ideally, we also know the predictions from the frame itself.
+Just look at the [notebook](main.ipynb). ideally, we also know the predictions from the frame itself.
+
+## Improvements
+
+- add predictions to the frame
