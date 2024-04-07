@@ -110,8 +110,8 @@ for fid in fids:
 df = pd.DataFrame(final)
 
 FINAL_SCORE = "2-2"
-df["ineligible"] = (
-    df["degen"] == 0
+df["contributed"] = (
+    df["degen"] != 0
 )  # ideally, but we have last time's pot to consider as well
 df["winner"] = df["prediction"] == FINAL_SCORE
 
