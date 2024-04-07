@@ -2,7 +2,14 @@
 
 an experiment in betting via the football channel on warpcast. 
 
-## Data
+## Purpose
+
+uses the frame API, Neynar, and basescan to retrieve:
+
+- who predicted what
+- how much DEGEN they sent
+
+## Data (redundant now)
 
 raw files come from:
 
@@ -12,8 +19,10 @@ raw files come from:
 
 ## Usage
 
-Just look at the [notebook](main.ipynb). ideally, we also know the predictions from the frame itself.
+`python main.py`
 
 ## Improvements
 
 - add predictions to the frame
+- add winner
+- make this a frame
