@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from datetime import datetime
 import requests
+import pandas as pd
 
 load_dotenv()
 
@@ -75,7 +76,6 @@ eth_addresses = {
 transactions = get_transactions(CONTRACT_ADDRESS)
 from_timestamp = get_timestamp("2024-03-25 00:00:00")
 to_timestamp = get_timestamp("2024-04-07 12:00:00")
-
 degen_valid = {
     txn["from"]: txn["value"]
     for txn in transactions["result"]
@@ -83,11 +83,36 @@ degen_valid = {
     and from_timestamp <= int(txn["timeStamp"]) <= to_timestamp
 }
 
-# Now, use all this information to figure out who has submitted a prediction, and who has sent DEGEN to the pot
-for fid, addresses in eth_addresses.items():
-    if fid in predictions:
-        print(f"Person: {fid_info['users'][fids.index(fid)]['username']}")
-        print(f"Prediction: {predictions[fid]}")
-        print(f"ETH Address: {addresses}")
-        print(f"DEGEN Sent: {[degen_valid.get(address, 0) for address in addresses]}")
-        print()
+final = []
+
+for fid in fids:
+    if not eth_addresses[fid]:
+        final.append(
+            {
+                "fid": fid,
+                "username": fid_info["users"][fids.index(fid)]["username"],
+                "prediction": predictions[fid],
+                "address": None,
+                "degen": 0,
+            }
+        )
+    for address in eth_addresses[fid]:
+        final.append(
+            {
+                "fid": fid,
+                "username": fid_info["users"][fids.index(fid)]["username"],
+                "prediction": predictions[fid],
+                "address": address,
+                "degen": degen_valid.get(address, 0),
+            }
+        )
+
+df = pd.DataFrame(final)
+
+FINAL_SCORE = "2-2"
+df["ineligible"] = (
+    df["degen"] == 0
+)  # ideally, but we have last time's pot to consider as well
+df["winner"] = df["prediction"] == FINAL_SCORE
+
+df.to_csv("output.csv", index=False)
