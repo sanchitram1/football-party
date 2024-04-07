@@ -1,4 +1,5 @@
 import os
+from arrow import get
 from dotenv import load_dotenv
 from datetime import datetime
 import requests
@@ -51,6 +52,23 @@ def get_transactions(contract_address):
         # "page": 1,
         # "offset": 10,
         # "sort": "desc",
+        "apikey": BASESCAN_API_KEY,
+    }
+    url = base_url + "?" + "&".join([f"{k}={v}" for k, v in params.items()])
+    response = requests.get(url)
+
+    response.raise_for_status()
+    return response.json()
+
+
+def get_degen_balance(contract_address):
+    """https://api.etherscan.io/api?module=account&action=tokenbalance&contractaddress=<contract_address>&address=<wallet_address>&tag=latest&apikey=<your_api_key>"""
+    base_url = "https://api.basescan.org/api"
+    params = {
+        "module": "account",
+        "action": "tokenbalance",
+        "address": contract_address,
+        "contractaddress": "0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed",
         "apikey": BASESCAN_API_KEY,
     }
     url = base_url + "?" + "&".join([f"{k}={v}" for k, v in params.items()])
@@ -115,4 +133,27 @@ df["contributed"] = (
 )  # ideally, but we have last time's pot to consider as well
 df["winner"] = df["prediction"] == FINAL_SCORE
 
-df.to_csv("output.csv", index=False)
+# df.to_csv("output.csv", index=False)
+
+# Get balance of the contract
+result = get_degen_balance(CONTRACT_ADDRESS)
+degen_balance = result["result"]
+print(f"Contract balance: {int(degen_balance) / 1e18:.2f} DEGEN")
+
+# Everyone who contributed and got the score right gets a share of the pot
+# share is equal (not pro-rata)
+winners = df[df["winner"] & df["contributed"]]
+# Also add the row from df where fid = 10694, since Warpcast doesn't track his connected addresses
+winners = winners._append(df[(df["fid"] == 10694)])
+
+num_winners = 2  # len(winners), but hardcoding this time
+if num_winners == 0:
+    print("No winners this time!")
+
+share = int(degen_balance) // num_winners
+winners["payout"] = share / 1e18
+
+print(winners)
+
+# Save this result as 2024-04-07-united-liverpool.csv
+winners.to_csv("2024-04-07-united-liverpool.csv", index=False)
