@@ -15,11 +15,12 @@ uses the frame API, Neynar, and basescan to retrieve:
 
 `python main.py`
 
-dumps out the `output.csv`
+dumps out `output.csv` and `winners.csv`
 
-> Note that `contributed` is ideally how we'd track whether someone is eligible. But since, the scope of this one is the last two rounds, it's a bit more complicated (gotta track who contributed last round as well).
+> Note that `contributed` is ideally how we'd track whether someone is eligible. But since, the scope of this one is the last two rounds, it's a bit more complicated (gotta track who contributed last round as well). For now, the `from` and `to` timestamps work
 
 ## Improvements
 
 - add predictions to the frame
 - make this a frame
+- historical records of who won what

@@ -1,8 +1,7 @@
 import os
-from arrow import get
 from dotenv import load_dotenv
 from datetime import datetime
-import requests
+from requests import get
 import pandas as pd
 
 load_dotenv()
@@ -11,7 +10,8 @@ load_dotenv()
 NEYNAR_API_KEY = os.getenv("NEYNAR_API_KEY")
 VIEWER_FID = os.getenv("VIEWER_FID")
 FRAME_ID = os.getenv("FRAME_ID")
-CONTRACT_ADDRESS = os.getenv("CONTRACT_ADDRESS")
+PARTY_ADDRESS = os.getenv("PARTY_ADDRESS")
+DEGEN_ADDRESS = os.getenv("DEGEN_ADDRESS")
 BASESCAN_API_KEY = os.getenv("BASESCAN_API_KEY")
 
 
@@ -22,7 +22,7 @@ def get_timestamp(input):
 
 def get_frame_data():
     base_url = "https://api.sportscaster.xyz/epl/"
-    response = requests.get(base_url + FRAME_ID + "/frame_data.json")
+    response = get(base_url + FRAME_ID + "/frame_data.json")
 
     if response.status_code == 200:
         return response.json()
@@ -37,44 +37,28 @@ def get_fid_info(fids):
     url = base_url + "?fids=" + "%2C".join(fids) + "&viewer_fid=" + VIEWER_FID
 
     # Do it!
-    response = requests.get(url, headers=headers)
+    response = get(url, headers=headers)
     response.raise_for_status()
 
     return response.json()
 
 
-def get_transactions(contract_address):
+def get_basescan(module, action, address, contract_address="") -> dict:
+    """Interacts with basescan api"""
     base_url = "https://api.basescan.org/api"
     params = {
-        "module": "account",
-        "action": "tokentx",
-        "address": contract_address,
-        # "page": 1,
-        # "offset": 10,
-        # "sort": "desc",
+        "module": module,
+        "action": action,
+        "address": address,
+        "contractaddress": contract_address,
         "apikey": BASESCAN_API_KEY,
     }
-    url = base_url + "?" + "&".join([f"{k}={v}" for k, v in params.items()])
-    response = requests.get(url)
 
+    # Get
+    url = base_url + "?" + "&".join([f"{k}={v}" for k, v in params.items() if v])
+    response = get(url)
     response.raise_for_status()
-    return response.json()
 
-
-def get_degen_balance(contract_address):
-    """https://api.etherscan.io/api?module=account&action=tokenbalance&contractaddress=<contract_address>&address=<wallet_address>&tag=latest&apikey=<your_api_key>"""
-    base_url = "https://api.basescan.org/api"
-    params = {
-        "module": "account",
-        "action": "tokenbalance",
-        "address": contract_address,
-        "contractaddress": "0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed",
-        "apikey": BASESCAN_API_KEY,
-    }
-    url = base_url + "?" + "&".join([f"{k}={v}" for k, v in params.items()])
-    response = requests.get(url)
-
-    response.raise_for_status()
     return response.json()
 
 
@@ -91,9 +75,11 @@ eth_addresses = {
     for user in fid_info["users"]
 }
 
-transactions = get_transactions(CONTRACT_ADDRESS)
+# Manually do 10694, since chuk's addresses are not tracked in Warpcast
+eth_addresses[10694] = ["0x5d5d96abd337c830dc96a396f4ef32a2fdc3563d"]
+transactions = get_basescan("account", "tokentx", PARTY_ADDRESS)
 from_timestamp = get_timestamp("2024-03-25 00:00:00")
-to_timestamp = get_timestamp("2024-04-07 12:00:00")
+to_timestamp = get_timestamp("2024-04-07 15:30:00")
 degen_valid = {
     txn["from"]: txn["value"]
     for txn in transactions["result"]
@@ -101,19 +87,11 @@ degen_valid = {
     and from_timestamp <= int(txn["timeStamp"]) <= to_timestamp
 }
 
+# Build full view
 final = []
-
 for fid in fids:
     if not eth_addresses[fid]:
-        final.append(
-            {
-                "fid": fid,
-                "username": fid_info["users"][fids.index(fid)]["username"],
-                "prediction": predictions[fid],
-                "address": None,
-                "degen": 0,
-            }
-        )
+        raise
     for address in eth_addresses[fid]:
         final.append(
             {
@@ -124,36 +102,28 @@ for fid in fids:
                 "degen": degen_valid.get(address, 0),
             }
         )
-
 df = pd.DataFrame(final)
 
 FINAL_SCORE = "2-2"
-df["contributed"] = (
-    df["degen"] != 0
-)  # ideally, but we have last time's pot to consider as well
+df["contributed"] = df["degen"] != 0
 df["winner"] = df["prediction"] == FINAL_SCORE
-
-# df.to_csv("output.csv", index=False)
+df.to_csv("./data/2024-04-07/output.csv", index=False)
 
 # Get balance of the contract
-result = get_degen_balance(CONTRACT_ADDRESS)
+result = get_basescan("account", "tokenbalance", PARTY_ADDRESS, DEGEN_ADDRESS)
 degen_balance = result["result"]
-print(f"Contract balance: {int(degen_balance) / 1e18:.2f} DEGEN")
+print(f"Contract balance: {int(degen_balance)} DEGEN")
 
 # Everyone who contributed and got the score right gets a share of the pot
 # share is equal (not pro-rata)
 winners = df[df["winner"] & df["contributed"]]
-# Also add the row from df where fid = 10694, since Warpcast doesn't track his connected addresses
-winners = winners._append(df[(df["fid"] == 10694)])
+num_winners = len(winners)
 
-num_winners = 2  # len(winners), but hardcoding this time
 if num_winners == 0:
     print("No winners this time!")
 
 share = int(degen_balance) // num_winners
-winners["payout"] = share / 1e18
-
-print(winners)
+winners["payout"] = share
 
 # Save this result as 2024-04-07-united-liverpool.csv
-winners.to_csv("2024-04-07-united-liverpool.csv", index=False)
+winners.to_csv("./data/2024-04-07/winners.csv", index=False)
