@@ -86,6 +86,7 @@ degen_valid = {
 # Now, use all this information to figure out who has submitted a prediction, and who has sent DEGEN to the pot
 for fid, addresses in eth_addresses.items():
     if fid in predictions:
+        print(f"Person: {fid_info['users'][fids.index(fid)]['username']}")
         print(f"Prediction: {predictions[fid]}")
         print(f"ETH Address: {addresses}")
         print(f"DEGEN Sent: {[degen_valid.get(address, 0) for address in addresses]}")
