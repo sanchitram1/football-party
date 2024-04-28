@@ -83,16 +83,17 @@ eth_addresses = {
 # Manually do 10694, since chuk's addresses are not tracked in Warpcast...
 eth_addresses[10694] = ["0x5d5d96abd337c830dc96a396f4ef32a2fdc3563d"]
 
-# Grab contributions into pot
+# Grab contributions into pot from the last successful bet
 transactions = get_basescan("account", "tokentx", PARTY_ADDRESS)
-from_timestamp = get_timestamp("2024-03-25 00:00:00")
-to_timestamp = get_timestamp("2024-04-07 15:30:00")
+from_timestamp = get_timestamp("2024-04-20 00:00:00")  # El clasico
+to_timestamp = get_timestamp("2024-04-28 14:00:00")  # To NLD start
 degen_valid = {
     txn["from"]: txn["value"]
     for txn in transactions["result"]
     if txn["tokenSymbol"] == "DEGEN"
     and from_timestamp <= int(txn["timeStamp"]) <= to_timestamp
 }
+print(f"{len(degen_valid)} made contribution between from and to timestamps")
 
 # Alright, so...
 final = []
@@ -110,12 +111,13 @@ for fid in fids:
             }
         )
 df = pd.DataFrame(final)
+print(f"{df[df.degen != 0].shape[0]} are eligible")
 
 # And find the winners
-FINAL_SCORE = "2-2"
+FINAL_SCORE = "2-3"
 df["contributed"] = df["degen"] != 0
 df["winner"] = df["prediction"] == FINAL_SCORE
-df.to_csv("./data/2024-04-07/output.csv", index=False)
+df.to_csv("./data/2024-04-28/output.csv", index=False)
 
 # What about the payout?
 result = get_basescan("account", "tokenbalance", PARTY_ADDRESS, DEGEN_ADDRESS)
@@ -132,7 +134,7 @@ if num_winners == 0:
     sys.exit()
 
 share = int(degen_balance) // num_winners
-winners["payout"] = share
+winners["payout"] = share / 1e18  # friggin wei
 
 # Save this result as 2024-04-07-united-liverpool.csv
-winners.to_csv("./data/2024-04-07/winners.csv", index=False)
+winners.to_csv("./data/2024-04-28/winners.csv", index=False)
